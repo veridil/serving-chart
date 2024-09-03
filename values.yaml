@@ -1,0 +1,103 @@
+
+global:
+  image:
+    # name: us-central1-docker.pkg.dev/idnorm-business-ops/idnorm/tfserving
+    # tag: v0.1.0
+    name: lrotim/tfserving
+    tag: tmp
+    pullPolicy: IfNotPresent
+  annotations: {}
+  labels: {}
+  resources:
+    requests:
+      cpu: 100m
+      memory: 100Mi
+    limits:
+      cpu: 1000m
+      memory: 1000Mi
+  imagePullSecrets: []
+  env: 
+    - name: VD_DEC
+      value: "1"
+    # - name: gcr-pull-secret
+
+  service:
+    type: ClusterIP
+    port: 8500
+    targetPort: 8500
+    annotations: {}
+    labels: {}
+
+  autoscaling:
+    enabled: true
+    minReplicas: 1
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 80
+  
+  modelStorage:
+    gc:
+      enabled: true
+      bucket: idnorm-models-enc
+      path: ""
+      credentialsSecret: ""
+
+singletons:
+  - modelId: classifier_6_27_0
+    # Can override global.image
+    image: {}
+      # name: tensorflow/serving
+      # tag: latest
+      # pullPolicy: IfNotPresent
+    # can override global.service
+    service:
+      type: ClusterIP
+    # Can override global.autoscaling
+    autoscaling:
+      enabled: true
+      minReplicas: 1
+      maxReplicas: 100
+      targetCPUUtilizationPercentage: 80
+    modelStorage:
+      gc:
+        # enabled: true
+        # bucket: model-bucket
+        # path: models
+    resources:
+      requests:
+        cpu: 100m
+        memory: 100Mi
+      limits:
+        cpu: 1000m
+        memory: 1000Mi
+
+groups:
+  - groupId: group-1
+    models:
+      - classifier_6_27_0
+      - 63e60ef2e56ea461a6a16a4d
+      - extractor_6_28_0
+      - ocr_6_19_1
+    # Can override global.image
+    image: {}
+      # name: tensorflow/serving
+      # tag: latest
+      # pullPolicy: IfNotPresent
+    # can override global.service
+    service:
+      type: ClusterIP
+    modelStorage:
+      gc:
+        # enabled: true
+        # bucket: model-bucket
+        # path: models
+    resources:
+      requests:
+        cpu: 100m
+        memory: 100Mi
+      limits:
+        cpu: 1000m
+        memory: 1000Mi
+        
+          
+
+  

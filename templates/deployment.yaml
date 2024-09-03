@@ -1,0 +1,203 @@
+{{- range $index, $singleton := .Values.singletons }}
+{{- $singleton := merge $.Values.global $singleton }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ printf "d-%s" (include "tensorflow-serving.sanitizeModelName" $singleton.modelId) }}
+  namespace: {{ include "tensorflow-serving.namespace" $ }}
+  labels:
+    app.kubernetes.io/name: tensorflow-serving
+    app.kubernetes.io/instance: {{ include "tensorflow-serving.name" $ }}
+    modelId: {{ $singleton.modelId }}
+spec:
+  replicas: {{ $singleton.autoscaling.minReplicas | default $.Values.global.autoscaling.minReplicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: tensorflow-serving
+      modelId: {{ $singleton.modelId }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: tensorflow-serving
+        modelId: {{ $singleton.modelId }}
+    spec:
+      imagePullSecrets:
+        {{- toYaml $.Values.global.imagePullSecrets | nindent 8 }}
+      initContainers:
+      - name: model-downloader
+        image: google/cloud-sdk:slim
+        command:
+        - /bin/sh
+        - -c
+        - |
+            {{- $gsPath := "" }}
+            {{- if $singleton.modelStorage.gc.path }}
+            {{- $gsPath = printf "%s/%s" $singleton.modelStorage.gc.bucket $singleton.modelStorage.gc.path }}
+            {{- else }}
+            {{- $gsPath = $singleton.modelStorage.gc.bucket }}
+            {{- end }}
+          if [ -z "{{ $singleton.modelStorage.gc.credentialsSecret }}" ]; then
+            gsutil cp -r gs://{{ $gsPath }}/{{ $singleton.modelId }} /models
+          else
+            export GOOGLE_APPLICATION_CREDENTIALS=/secret/credentials.json
+            gsutil cp -r gs://{{ $gsPath }}/{{ $singleton.modelId }} /models
+          fi
+        volumeMounts:
+        - name: model-volume
+          mountPath: /models
+        {{- if $singleton.modelStorage.gc.credentialsSecret }}
+        - name: secret-volume
+          mountPath: /secret
+          readOnly: true
+        {{- end }}
+        resources:
+          {{- toYaml $singleton.resources | nindent 12 }}
+      containers:
+      - name: tensorflow-serving
+        image: "{{ $singleton.image.name | default $.Values.global.image.name }}:{{ $singleton.image.tag | default $.Values.global.image.tag }}"
+        imagePullPolicy: {{ $singleton.image.pullPolicy | default $.Values.global.image.pullPolicy }}
+        args:
+        - --model_config_file=/config/model-config
+        - --enable_profiler=false
+        env:
+          {{- toYaml $.Values.global.env | nindent 12 }}
+        ports:
+        - containerPort: 8500
+        resources:
+          {{- toYaml $singleton.resources | nindent 12 }}
+        volumeMounts:
+        - name: model-volume
+          mountPath: /models
+        - name: config-volume
+          mountPath: /config
+      volumes:
+      - name: model-volume
+        emptyDir: {}
+      - name: config-volume
+        configMap:
+          name: {{ printf "cm-%s" (include "tensorflow-serving.sanitizeModelName" $singleton.modelId) }}
+      {{- if $singleton.modelStorage.gc.credentialsSecret }}
+      - name: secret-volume
+        secret:
+          secretName: {{ $singleton.modelStorage.gc.credentialsSecret }}
+      {{- end }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ printf "cm-%s" (include "tensorflow-serving.sanitizeModelName" $singleton.modelId) }}
+  namespace: {{ include "tensorflow-serving.namespace" $ }}
+  labels:
+    app.kubernetes.io/name: tensorflow-serving
+    app.kubernetes.io/instance: {{ include "tensorflow-serving.name" $ }}
+    modelId: {{ $singleton.modelId }}
+data:
+  {{ $singletonList := list $singleton.modelId }}
+  model-config: |
+    {{ include "tensorflow-serving.modelConfig" $singletonList | nindent 4 }}
+{{- end }}
+
+{{- range $index, $group := .Values.groups }}
+{{- $group := merge $.Values.global $group }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ printf "d-%s" (include "tensorflow-serving.sanitizeModelName" $group.groupId) }}
+  namespace: {{ include "tensorflow-serving.namespace" $ }}
+  labels:
+    app.kubernetes.io/name: tensorflow-serving
+    app.kubernetes.io/instance: {{ include "tensorflow-serving.name" $ }}
+    groupId: {{ $group.groupId }}
+spec:
+  replicas: {{ $group.autoscaling.minReplicas | default $.Values.global.autoscaling.minReplicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: tensorflow-serving
+      groupId: {{ $group.groupId }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: tensorflow-serving
+        groupId: {{ $group.groupId }}
+    spec:
+      imagePullSecrets:
+        {{- toYaml $.Values.global.imagePullSecrets | nindent 8 }}
+      initContainers:
+      - name: model-downloader
+        image: google/cloud-sdk:slim
+        command:
+        - /bin/sh
+        - -c
+        - |
+          {{- $gsPath := "" }}
+          {{- if $group.modelStorage.gc.path }}
+          {{- $gsPath = printf "%s/%s" $group.modelStorage.gc.bucket $group.modelStorage.gc.path }}
+          {{- else }}
+          {{- $gsPath = $group.modelStorage.gc.bucket }}
+          {{- end }}
+          if [ -z "{{ $group.modelStorage.gc.credentialsSecret }}" ]; then
+            {{- range $model := $group.models }}
+            gsutil cp -r gs://{{ $gsPath }}/{{ $model }} /models
+            {{- end }}
+          else
+            export GOOGLE_APPLICATION_CREDENTIALS=/secret/credentials.json
+            {{- range $model := $group.models }}
+            gsutil cp -r gs://{{ $gsPath }}/{{ $model }} /models
+            {{- end }}
+          fi
+        volumeMounts:
+        - name: model-volume
+          mountPath: /models
+        {{- if $group.modelStorage.gc.credentialsSecret }}
+        - name: secret-volume
+          mountPath: /secret
+          readOnly: true
+        {{- end }}
+        resources:
+          {{- toYaml $group.resources | nindent 12 }}
+      containers:
+      - name: tensorflow-serving
+        image: "{{ $group.image.name | default $.Values.global.image.name }}:{{ $group.image.tag | default $.Values.global.image.tag }}"
+        imagePullPolicy: {{ $group.image.pullPolicy | default $.Values.global.image.pullPolicy }}
+        args:
+        - --model_config_file=/config/model-config
+        - --enable_profiler=false
+        env:
+          {{- toYaml $.Values.global.env | nindent 12 }}
+        ports:
+        - containerPort: 8500
+        resources:
+          {{- toYaml $group.resources | nindent 12 }}
+        volumeMounts:
+        - name: model-volume
+          mountPath: /models
+        - name: config-volume
+          mountPath: /config
+      volumes:
+      - name: config-volume
+        configMap:
+          name: {{ printf "cm-%s" (include "tensorflow-serving.sanitizeModelName" $group.groupId) }}
+      - name: model-volume
+        emptyDir: {}
+      {{- if $group.modelStorage.gc.credentialsSecret }}
+      - name: secret-volume
+        secret:
+          secretName: {{ $group.modelStorage.gc.credentialsSecret }}
+      {{- end }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ printf "cm-%s" (include "tensorflow-serving.sanitizeModelName" $group.groupId) }}
+  namespace: {{ include "tensorflow-serving.namespace" $ }}
+  labels:
+    app.kubernetes.io/name: tensorflow-serving
+    app.kubernetes.io/instance: {{ include "tensorflow-serving.name" $ }}
+    groupId: {{ $group.groupId }}
+data:
+  model-config: |
+    {{ include "tensorflow-serving.modelConfig" $group.models | nindent 4 }}
+
+{{- end }}
