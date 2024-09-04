@@ -1,47 +1,24 @@
-{{- range $index, $singleton := .Values.singletons }}
-{{- $singleton := merge $.Values.global $singleton }}
----
+{{- range $index, $dep := .Values.deployments }}
+{{- $dep := merge $.Values.global $dep }}
+{{- if not $dep.knative.enabled }}
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ printf "s-%s" (include "tensorflow-serving.sanitizeModelName" $singleton.modelId) }}
+  name: {{ printf "s-%s" (include "tensorflow-serving.sanitizeModelName" $dep.name) }}
   namespace: {{ include "tensorflow-serving.namespace" $ }}
   annotations:
     {{- toYaml $.Values.global.service.annotations | nindent 4 }}
   labels:
     app.kubernetes.io/name: tensorflow-serving
     app.kubernetes.io/instance: {{ include "tensorflow-serving.name" $ }}
-    modelId: {{ $singleton.modelId }}
+    deploymentName: {{ $dep.name }}
 spec:
-  type: {{ $singleton.service.type | default $.Values.global.service.type }}
+  type: {{ $dep.service.type | default $.Values.global.service.type }}
   ports:
   - port: {{ $.Values.global.service.port }}
-    targetPort: {{ $singleton.service.targetPort | default $.Values.global.service.targetPort }}
+    targetPort: {{ $dep.service.targetPort | default $.Values.global.service.targetPort }}
   selector:
     app.kubernetes.io/name: tensorflow-serving
-    modelId: {{ $singleton.modelId }}
+    deploymentName: {{ $dep.name }}
 {{- end }}
-
-{{- range $index, $group := .Values.groups }}
-{{- $group := merge $.Values.global $group }}
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: {{ printf "s-%s" (include "tensorflow-serving.sanitizeModelName" $group.groupId) }}
-  namespace: {{ include "tensorflow-serving.namespace" $ }}
-  annotations:
-    {{- toYaml $.Values.global.service.annotations | nindent 4 }}
-  labels:
-    app.kubernetes.io/name: tensorflow-serving
-    app.kubernetes.io/instance: {{ include "tensorflow-serving.name" $ }}
-    groupId: {{ $group.groupId }}
-spec:
-  type: {{ $group.service.type }}
-  ports:
-  - port: {{ $.Values.global.service.port }}
-    targetPort: {{ $group.service.targetPort }}
-  selector:
-    app.kubernetes.io/name: tensorflow-serving
-    groupId: {{ $group.groupId }}
 {{- end }}

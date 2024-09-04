@@ -21,6 +21,9 @@ global:
       value: "1"
     # - name: gcr-pull-secret
 
+  knative:
+    enabled: true
+
   service:
     type: ClusterIP
     port: 8500
@@ -41,8 +44,14 @@ global:
       path: ""
       credentialsSecret: ""
 
-singletons:
-  - modelId: classifier_6_27_0
+deployments:
+  - name: extraction
+    # Can be empty, if empty it will use the deployment name as the modelId
+    models: 
+      - 63e60ef2e56ea461a6a16a4d
+      - classifier_6_27_0
+      - extractor_6_28_0
+      - ocr_6_19_1
     # Can override global.image
     image: {}
       # name: tensorflow/serving
@@ -55,13 +64,16 @@ singletons:
     autoscaling:
       enabled: true
       minReplicas: 1
-      maxReplicas: 100
+      maxReplicas: 10
       targetCPUUtilizationPercentage: 80
+
+    # Can override global.modelStorage
     modelStorage:
       gc:
         # enabled: true
         # bucket: model-bucket
         # path: models
+    # Can override global.resources
     resources:
       requests:
         cpu: 100m
@@ -69,35 +81,3 @@ singletons:
       limits:
         cpu: 1000m
         memory: 1000Mi
-
-groups:
-  - groupId: group-1
-    models:
-      - classifier_6_27_0
-      - 63e60ef2e56ea461a6a16a4d
-      - extractor_6_28_0
-      - ocr_6_19_1
-    # Can override global.image
-    image: {}
-      # name: tensorflow/serving
-      # tag: latest
-      # pullPolicy: IfNotPresent
-    # can override global.service
-    service:
-      type: ClusterIP
-    modelStorage:
-      gc:
-        # enabled: true
-        # bucket: model-bucket
-        # path: models
-    resources:
-      requests:
-        cpu: 100m
-        memory: 100Mi
-      limits:
-        cpu: 1000m
-        memory: 1000Mi
-        
-          
-
-  
