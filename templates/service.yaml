@@ -1,5 +1,6 @@
 {{- range $index, $dep := .Values.deployments }}
-{{- $dep := merge $.Values.global $dep }}
+{{ $gc := deepCopy $.Values.global }}
+{{- $dep := mergeOverwrite $gc $dep }}
 {{- if not $dep.knative.enabled }}
 apiVersion: v1
 kind: Service

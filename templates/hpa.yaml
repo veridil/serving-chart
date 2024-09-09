@@ -1,0 +1,28 @@
+{{- range $index, $dep := .Values.deployments }}
+{{ $gc := deepCopy $.Values.global }}
+{{- $dep := mergeOverwrite $gc $dep }}
+{{ if $dep.hpa.enabled }}
+---
+apiVersion: autoscaling/v2beta1
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ printf "hpa-%s" (include "tensorflow-serving.sanitizeModelName" $dep.name) }}
+  namespace: {{ include "tensorflow-serving.namespace" $ }}
+  labels:
+    app.kubernetes.io/name: tensorflow-serving
+    app.kubernetes.io/instance: {{ include "tensorflow-serving.name" $ }}
+    deploymentName: {{ $dep.name }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ printf "d-%s" (include "tensorflow-serving.sanitizeModelName" $dep.name) }}
+  minReplicas: {{ $dep.hpa.minReplicas }}
+  maxReplicas: {{ $dep.hpa.maxReplicas }}
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      targetAverageUtilization: {{ $dep.hpa.targetCPUUtilizationPercentage }}
+{{- end }}
+{{- end }}

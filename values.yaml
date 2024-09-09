@@ -1,10 +1,8 @@
 
 global:
   image:
-    # name: us-central1-docker.pkg.dev/idnorm-business-ops/idnorm/tfserving
-    # tag: v0.1.0
-    name: lrotim/tfserving
-    tag: tmp
+    name: us-central1-docker.pkg.dev/idnorm-business-ops/idnorm/tfserving
+    tag: v0.1.0
     pullPolicy: IfNotPresent
   annotations: {}
   labels: {}
@@ -23,6 +21,16 @@ global:
 
   knative:
     enabled: true
+    autoscaling:
+      metricType: concurrency
+      target: 5
+      targetUtilizationPercentage: 80
+      minScale: 0
+      maxScale: 5
+      initialScale: 1
+      scaleDownDelay: 1m
+      scaleToZeroGracePeriod: 30
+      stableWindow: 30s
 
   service:
     type: ClusterIP
@@ -31,11 +39,12 @@ global:
     annotations: {}
     labels: {}
 
-  autoscaling:
-    enabled: true
+  hpa:
+    enabled: false
     minReplicas: 1
     maxReplicas: 10
     targetCPUUtilizationPercentage: 80
+    targetMemoryUtilizationPercentage: 80
   
   modelStorage:
     gc:
@@ -60,17 +69,16 @@ deployments:
     # can override global.service
     service:
       type: ClusterIP
-    # Can override global.autoscaling
-    autoscaling:
+    # Can override global.hpa
+    hpa:
+      enabled: false
+    # Can override global.knative
+    knative:
       enabled: true
-      minReplicas: 1
-      maxReplicas: 10
-      targetCPUUtilizationPercentage: 80
-
     # Can override global.modelStorage
     modelStorage:
       gc:
-        # enabled: true
+        enabled: true
         # bucket: model-bucket
         # path: models
     # Can override global.resources
@@ -79,5 +87,5 @@ deployments:
         cpu: 100m
         memory: 100Mi
       limits:
-        cpu: 1000m
-        memory: 1000Mi
+        cpu: 2000m
+        memory: 2000Mi

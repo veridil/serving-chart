@@ -1,5 +1,6 @@
 {{- range $index, $dep := .Values.deployments }}
-{{- $dep := merge $.Values.global $dep }}
+{{ $gc := deepCopy $.Values.global }}
+{{- $dep := mergeOverwrite $gc $dep }}
 {{- if not $dep.knative.enabled }}
 {{ $models := $dep.models }}
 ---
@@ -13,7 +14,6 @@ metadata:
     app.kubernetes.io/instance: {{ include "tensorflow-serving.name" $ }}
     deploymentName: {{ $dep.name }}
 spec:
-  replicas: {{ $dep.autoscaling.minReplicas | default $.Values.global.autoscaling.minReplicas }}
   selector:
     matchLabels:
       app.kubernetes.io/name: tensorflow-serving

@@ -1,6 +1,10 @@
 {{- range $index, $dep := .Values.deployments }}
-{{- $dep := merge $.Values.global $dep }}
+{{ $gc := deepCopy $.Values.global }}
+{{- $dep := mergeOverwrite $gc $dep }}
 {{- if $dep.knative.enabled }}
+{{ if $dep.hpa.enabled }}
+{{- fail (printf "Error: HPA and Knative cannot be enabled simultaneously for the same deployment '%s'. Please disable one of them." $dep.name) }}
+{{- end -}}
 {{- $models := list }}
 {{- if $dep.models }}
 {{- $models = $dep.models }}
@@ -22,6 +26,10 @@ data:
     {{ include "tensorflow-serving.modelConfig" $models | nindent 4 }}
 
 ---
+{{ $autoscalingClass := "hpa.autoscaling.knative.dev" }}
+{{ if or (eq $dep.knative.autoscaling.metricType "concurrency") (eq $dep.knative.autoscaling.metricType "rps") }}
+  {{ $autoscalingClass = "kpa.autoscaling.knative.dev" }}
+{{- end }}
 apiVersion: serving.knative.dev/v1
 kind: Service
 metadata:
@@ -37,6 +45,19 @@ spec:
       labels:
         app.kubernetes.io/name: tensorflow-serving
         deploymentName: {{ $dep.name }}
+      annotations:
+        autoscaling.knative.dev/class: {{ $autoscalingClass }}
+        autoscaling.knative.dev/metric: {{ $dep.knative.autoscaling.metricType }}
+        autoscaling.knative.dev/target: {{ $dep.knative.autoscaling.target | quote }}
+        autoscaling.knative.dev/min-scale: {{ $dep.knative.autoscaling.minScale | quote }}
+        autoscaling.knative.dev/max-scale: {{ $dep.knative.autoscaling.maxScale | quote }}
+        {{- if $dep.knative.autoscaling.targetUtilizationPercentage }}
+        autoscaling.knative.dev/target-utilization-percentage: {{ $dep.knative.autoscaling.targetUtilizationPercentage | quote }}
+        {{- end }}
+        autoscaling.knative.dev/initial-scale: {{ $dep.knative.autoscaling.initialScale | quote }}
+        autoscaling.knative.dev/scale-down-delay: {{ $dep.knative.autoscaling.scaleDownDelay | quote }}
+        autoscaling.knative.dev/scale-to-zero-grace-period: {{ $dep.knative.autoscaling.scaleToZeroGracePeriod | quote }}
+        autoscaling.knative.dev/stable-window: {{ $dep.knative.autoscaling.stableWindow | quote }}
     spec:
       containers:
       - name: tensorflow-serving
@@ -48,6 +69,7 @@ spec:
           {{- toYaml $.Values.global.env | nindent 10 }}
         ports:
         - containerPort: 8500
+          name: h2c
         resources:
           {{- toYaml $dep.resources | nindent 10 }}
         volumeMounts:
