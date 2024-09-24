@@ -61,7 +61,7 @@ spec:
     spec:
       containers:
       - name: tensorflow-serving
-        image: "{{ $dep.image.name | default $.Values.global.image.name }}:{{ $dep.image.tag | default $.Values.global.image.tag }}"
+        image: "{{ $dep.image.name }}:{{ $dep.image.tag }}"
         args:
         - --model_config_file=/config/model-config
         - --enable_profiler=false
@@ -106,7 +106,7 @@ spec:
             gsutil cp -r gs://{{ $gsPath }}/{{ $model }} /models
             {{- end }}
           else
-            export GOOGLE_APPLICATION_CREDENTIALS=/secret/credentials.json
+            gcloud auth activate-service-account --key-file=/secret/credentials.json
             {{- range $model := $models }}
             gsutil cp -r gs://{{ $gsPath }}/{{ $model }} /models
             {{- end }}

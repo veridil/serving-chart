@@ -53,39 +53,40 @@ global:
       path: ""
       credentialsSecret: ""
 
-deployments:
-  - name: extraction
-    # Can be empty, if empty it will use the deployment name as the modelId
-    models: 
-      - 63e60ef2e56ea461a6a16a4d
-      - classifier_6_27_0
-      - extractor_6_28_0
-      - ocr_6_19_1
-    # Can override global.image
-    image: {}
-      # name: tensorflow/serving
-      # tag: latest
-      # pullPolicy: IfNotPresent
-    # can override global.service
-    service:
-      type: ClusterIP
-    # Can override global.hpa
-    hpa:
-      enabled: false
-    # Can override global.knative
-    knative:
-      enabled: true
-    # Can override global.modelStorage
-    modelStorage:
-      gc:
-        enabled: true
-        # bucket: model-bucket
-        # path: models
-    # Can override global.resources
-    resources:
-      requests:
-        cpu: 100m
-        memory: 100Mi
-      limits:
-        cpu: 2000m
-        memory: 2000Mi
+deployments: []
+  # - name: extraction
+  #   # Can be empty, if empty it will use the deployment name as the modelId
+  #   models: 
+  #     - 63e60ef2e56ea461a6a16a4d
+  #     - classifier_6_27_0
+  #     - extractor_6_28_0
+  #     - ocr_6_19_1
+  #   # Can override global.image
+  #   image: {}
+  #     # name: tensorflow/serving
+  #     # tag: latest
+  #     # pullPolicy: IfNotPresent
+  #   # can override global.service
+  #   service:
+  #     type: ClusterIP
+  #   # Can override global.hpa
+  #   hpa:
+  #     enabled: false
+  #   # Can override global.knative
+  #   knative:
+  #     enabled: true
+  #   # Can override global.modelStorage
+  #   modelStorage:
+  #     gc:
+  #       enabled: true
+  #       # bucket: model-bucket
+  #       # path: models
+  #       # credentialsSecret: gcr-pull-secret
+  #   # Can override global.resources
+  #   resources:
+  #     requests:
+  #       cpu: 100m
+  #       memory: 100Mi
+  #     limits:
+  #       cpu: 2000m
+  #       memory: 2000Mi
