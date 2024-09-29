@@ -56,8 +56,8 @@ spec:
         {{- end }}
         autoscaling.knative.dev/initial-scale: {{ $dep.knative.autoscaling.initialScale | quote }}
         autoscaling.knative.dev/scale-down-delay: {{ $dep.knative.autoscaling.scaleDownDelay | quote }}
-        autoscaling.knative.dev/scale-to-zero-grace-period: {{ $dep.knative.autoscaling.scaleToZeroGracePeriod | quote }}
-        autoscaling.knative.dev/stable-window: {{ $dep.knative.autoscaling.stableWindow | quote }}
+        autoscaling.knative.dev/scale-to-zero-pod-retention-period: {{ $dep.knative.autoscaling.scaleToZeroGracePeriod | quote }}
+        autoscaling.knative.dev/window: {{ $dep.knative.autoscaling.stableWindow | quote }}
     spec:
       containers:
       - name: tensorflow-serving

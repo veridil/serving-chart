@@ -29,7 +29,7 @@ global:
       maxScale: 5
       initialScale: 1
       scaleDownDelay: 1m
-      scaleToZeroGracePeriod: 30
+      scaleToZeroGracePeriod: 30s
       stableWindow: 30s
 
   service:
