@@ -40,14 +40,18 @@ spec:
           {{- $gsPath = $dep.modelStorage.gc.bucket }}
           {{- end }}
           if [ -z "{{ $dep.modelStorage.gc.credentialsSecret }}" ]; then
-            {{- range $model := $dep.models }}
-            gsutil cp -r gs://{{ $gsPath }}/{{ $model }} /models
+            gsutil -m cp -r \
+            {{- range $model := $models }}
+            gs://{{ $gsPath }}/{{ $model }} \
             {{- end }}
+            /models
           else
             gcloud auth activate-service-account --key-file=/secret/credentials.json
-            {{- range $model := $dep.models }}
-            gsutil cp -r gs://{{ $gsPath }}/{{ $model }} /models
+            gsutil -m cp -r \
+            {{- range $model := $models }}
+            gs://{{ $gsPath }}/{{ $model }} \
             {{- end }}
+            /models
           fi
         volumeMounts:
         - name: model-volume
