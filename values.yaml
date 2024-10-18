@@ -1,7 +1,7 @@
 
 global:
   image:
-    name: us-central1-docker.pkg.dev/idnorm-business-ops/idnorm/tfserving
+    name: us-central1-docker.pkg.dev/idnorm/idnorm/tfserving
     tag: v0.1.0
     pullPolicy: IfNotPresent
   annotations: {}
