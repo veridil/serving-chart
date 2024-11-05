@@ -70,6 +70,9 @@ spec:
         args:
         - --model_config_file=/config/model-config
         - --enable_profiler=false
+        - --file_system_poll_wait_seconds=0
+        - --grpc_max_threads=0
+        - --num_load_threads={{ len $models }}
         env:
           {{- toYaml $.Values.global.env | nindent 12 }}
         ports:
