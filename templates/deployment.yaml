@@ -2,7 +2,13 @@
 {{ $gc := deepCopy $.Values.global }}
 {{- $dep := mergeOverwrite $gc $dep }}
 {{- if not $dep.knative.enabled }}
-{{ $models := $dep.models }}
+{{- $models := list }}
+{{- if $dep.models }}
+{{- $models = $dep.models }}
+{{- else }}
+{{- $models = list $dep.name }}
+{{- end }}
+{{- $servingParams := include "custom.servingParams" $dep | fromYaml }}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -71,7 +77,10 @@ spec:
         - --model_config_file=/config/model-config
         - --enable_profiler=false
         - --file_system_poll_wait_seconds=0
-        - --grpc_max_threads=0
+        - --num_load_threads={{ len $models }}
+        - --grpc_max_threads={{ $servingParams.maxGrpcThreads }}
+        - --tensorflow_inter_op_parallelism={{ $servingParams.interOpConcurrency }}
+        - --tensorflow_intra_op_parallelism={{ $servingParams.intraOpConcurrency }}
         env:
           {{- toYaml $.Values.global.env | nindent 12 }}
         ports:

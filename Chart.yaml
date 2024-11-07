@@ -1,4 +1,4 @@
 apiVersion: v2
 name: serving-chart
 description: A Helm chart for Kubernetes
-version: 0.1.9
+version: 0.1.12

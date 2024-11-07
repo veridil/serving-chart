@@ -41,3 +41,42 @@ model_config_list: {
   {{- end }}
 }
 {{- end }}
+
+
+{{- define "custom.servingParams" -}}
+{{- $resources := .resources }}
+{{- $serving := .params.serving }}
+
+{{- $cpuLimit := $resources.limits.cpu | default $resources.requests.cpu | default "1000m" }}
+
+{{- $cpuLimitAsInt := 1 }}
+{{- $cpuLimitType := printf "%T" $cpuLimit }}
+{{- if and (eq "string" $cpuLimitType ) }}
+  {{- if not (hasSuffix "m" $cpuLimit) }}
+  {{ fail "cpu limit and requests must be a number or in <number>m format" }}
+  {{- end }}
+  {{- $cpuLimitIntCast := int (trimSuffix "m" $cpuLimit) }}
+  {{- $cpuLimitAsInt = div $cpuLimitIntCast 1000 | ceil }}
+{{- else }}
+  {{- $cpuLimitAsInt = ceil $cpuLimit | int }}
+{{- end }}
+
+{{- /* Initialize variables with default values */ -}}
+{{- $intraOpConcurrency := $serving.intraOpConcurrency }}
+{{- $interOpConcurrency := $serving.interOpConcurrency }}
+{{- $maxGrpcThreads := $serving.maxGrpcThreads }}
+
+{{- /* Override if values are zero */ -}}
+{{- if eq (int $serving.intraOpConcurrency) 0 }}
+  {{- $intraOpConcurrency = $cpuLimitAsInt }}
+{{- end }}
+{{- if eq (int $serving.interOpConcurrency) 0 }}
+  {{- $interOpConcurrency = div (mul $cpuLimitAsInt 3) 2 | int }}
+{{- end }}
+{{- if eq (int $serving.maxGrpcThreads) 0 }}
+  {{- $maxGrpcThreads = mul $cpuLimitAsInt 4 }}
+{{- end }}
+intraOpConcurrency: {{ $intraOpConcurrency }}
+interOpConcurrency: {{ $interOpConcurrency }}
+maxGrpcThreads: {{ $maxGrpcThreads }}
+{{- end -}}

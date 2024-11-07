@@ -13,6 +13,12 @@ global:
     limits:
       cpu: 1000m
       memory: 1000Mi
+  params:
+    serving:
+      interOpConcurrency: 0
+      intraOpConcurrency: 0
+      maxGrpcThreads: 0
+
   imagePullSecrets: []
   env: 
     - name: VD_DEC
@@ -90,3 +96,7 @@ deployments: []
   #     limits:
   #       cpu: 2000m
   #       memory: 2000Mi
+  #   # Can override global.params
+  #   params:
+  #     serving:
+
