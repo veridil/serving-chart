@@ -17,7 +17,7 @@ metadata:
 spec:
   type: {{ $dep.service.type | default $.Values.global.service.type }}
   ports:
-  - port: {{ $.Values.global.service.port }}
+  - port: {{ $dep.service.port | default $.Values.global.service.port | default 80 }}
     targetPort: {{ $dep.service.targetPort | default $.Values.global.service.targetPort }}
   selector:
     app.kubernetes.io/name: tensorflow-serving
