@@ -2,6 +2,7 @@
 {{ $gc := deepCopy $.Values.global }}
 {{- $dep := mergeOverwrite $gc $dep }}
 {{- if not $dep.knative.enabled }}
+---
 apiVersion: v1
 kind: Service
 metadata:
@@ -22,5 +23,4 @@ spec:
     app.kubernetes.io/name: tensorflow-serving
     deploymentName: {{ $dep.name }}
 {{- end }}
----
 {{- end }}
