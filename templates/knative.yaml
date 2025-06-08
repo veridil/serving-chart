@@ -60,6 +60,10 @@ spec:
         autoscaling.knative.dev/scale-to-zero-pod-retention-period: {{ $dep.knative.autoscaling.scaleToZeroGracePeriod | quote }}
         autoscaling.knative.dev/window: {{ $dep.knative.autoscaling.stableWindow | quote }}
     spec:
+      {{- if $dep.nodeSelector }}
+      nodeSelector:
+        {{- toYaml $dep.nodeSelector | nindent 8 }}
+      {{- end }}
       containers:
       - name: tensorflow-serving
         image: "{{ $dep.image.name }}:{{ $dep.image.tag }}"
@@ -120,7 +124,7 @@ spec:
             {{- range $model := $models }}
             gs://{{ $gsPath }}/{{ $model }} \
             {{- end }}
-            /models           
+            /models
           fi
         volumeMounts:
         - name: model-volume

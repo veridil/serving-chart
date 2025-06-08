@@ -5,6 +5,7 @@ global:
     pullPolicy: IfNotPresent
   annotations: {}
   labels: {}
+  nodeSelector: {}
   resources:
     requests:
       cpu: 100m
@@ -81,6 +82,8 @@ deployments:
   #   # Can override global.knative
   #   knative:
   #     enabled: true
+  #   # Can override global.nodeSelector
+  #   nodeSelector: {}
   #   # Can override global.modelStorage
   #   modelStorage:
   #     gc:
