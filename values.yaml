@@ -38,6 +38,30 @@ global:
       scaleToZeroGracePeriod: 30s
       stableWindow: 30s
 
+  envoy:
+    enabled: false
+    image:
+      name: docker.io/envoyproxy/envoy
+      tag: distroless-v1.34.4
+      pullPolicy: IfNotPresent
+    listenPort: 8080
+    adminPort: 9901
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 200m
+        memory: 128Mi
+    concurrencyRoutes:
+      excludeGrpcHealth: true
+      includePaths:
+        - /tensorflow.serving.PredictionService/Predict
+        - /tensorflow.serving.PredictionService/Classify
+        - /tensorflow.serving.PredictionService/Regress
+        - /tensorflow.serving.PredictionService/MultiInference
+        - /tensorflow.serving.PredictionService/GetModelMetadata
+
   service:
     type: ClusterIP
     port: 80
@@ -51,6 +75,18 @@ global:
     maxReplicas: 10
     targetCPUUtilizationPercentage: 80
     targetMemoryUtilizationPercentage: 80
+    customMetric:
+      enabled: false
+      name: active-requests
+      prometheusMetricName: envoy_http_downstream_rq_active
+      averageValue: "4"
+      scaleDownStabilizationWindowSeconds: 600
+
+  # PodDisruptionBudget: limits simultaneous voluntary evictions (e.g. node drains)
+  pdb:
+    enabled: true
+    # Minimum pods that must stay available (count or percentage, e.g. "50%")
+    minAvailable: "50%"
 
   modelStorage:
     gc:
@@ -59,8 +95,7 @@ global:
       path: ""
       credentialsSecret: ""
 
-deployments:
-  []
+deployments: []
   # - name: extraction
   #   # Can be empty, if empty it will use the deployment name as the modelId
   #   models:
@@ -79,6 +114,10 @@ deployments:
   #   # Can override global.hpa
   #   hpa:
   #     enabled: false
+  #   # Can override global.pdb (only applies when knative is disabled)
+  #   pdb:
+  #     enabled: true
+  #     minAvailable: "50%"
   #   # Can override global.knative
   #   knative:
   #     enabled: true

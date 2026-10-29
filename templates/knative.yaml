@@ -2,8 +2,11 @@
 {{ $gc := deepCopy $.Values.global }}
 {{- $dep := mergeOverwrite $gc $dep }}
 {{- if $dep.knative.enabled }}
-{{ if $dep.hpa.enabled }}
+{{- if $dep.hpa.enabled }}
 {{- fail (printf "Error: HPA and Knative cannot be enabled simultaneously for the same deployment '%s'. Please disable one of them." $dep.name) }}
+{{- end -}}
+{{- if and $dep.envoy $dep.envoy.enabled }}
+{{- fail (printf "Error: Envoy and Knative cannot be enabled simultaneously for the same deployment '%s'. Please disable one of them." $dep.name) }}
 {{- end -}}
 {{- $models := list }}
 {{- if $dep.models }}

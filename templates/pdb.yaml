@@ -1,0 +1,23 @@
+{{- range $index, $dep := .Values.deployments }}
+{{ $gc := deepCopy $.Values.global }}
+{{- $dep := mergeOverwrite $gc $dep }}
+{{- if and (not $dep.knative.enabled) $dep.pdb.enabled }}
+{{- $sanitizedName := include "tensorflow-serving.sanitizeModelName" $dep.name }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ printf "pdb-%s" $sanitizedName }}
+  namespace: {{ include "tensorflow-serving.namespace" $ }}
+  labels:
+    app.kubernetes.io/name: tensorflow-serving
+    app.kubernetes.io/instance: {{ include "tensorflow-serving.name" $ }}
+    deploymentName: {{ $dep.name }}
+spec:
+  minAvailable: {{ $dep.pdb.minAvailable }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: tensorflow-serving
+      deploymentName: {{ $dep.name }}
+{{- end }}
+{{- end }}

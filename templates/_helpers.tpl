@@ -80,3 +80,53 @@ intraOpConcurrency: {{ $intraOpConcurrency }}
 interOpConcurrency: {{ $interOpConcurrency }}
 maxGrpcThreads: {{ $maxGrpcThreads }}
 {{- end -}}
+
+{{- /*
+Build gke-concurrency-proxy context from a merged deployment ($dep) and root context ($root).
+Usage: include "tensorflow-serving.proxyCtx" (dict "dep" $dep "root" $)
+*/ -}}
+{{- define "tensorflow-serving.proxyCtx" -}}
+{{- $dep := .dep -}}
+{{- $root := .root -}}
+{{- $sanitizedName := include "tensorflow-serving.sanitizeModelName" $dep.name -}}
+{{- $labels := dict
+  "app.kubernetes.io/name" "tensorflow-serving"
+  "app.kubernetes.io/instance" (include "tensorflow-serving.name" $root)
+  "deploymentName" $dep.name
+-}}
+{{- $selectorLabels := dict
+  "app.kubernetes.io/name" "tensorflow-serving"
+  "deploymentName" $dep.name
+-}}
+{{- $envoy := dig "envoy" (dict) $dep -}}
+{{- $hpa := dig "hpa" (dict) $dep -}}
+{{- $customMetric := dig "customMetric" (dict) $hpa -}}
+{{- $autoscalingEnabled := and (dig "enabled" false $hpa) (dig "enabled" false $customMetric) -}}
+{{- $proxyValues := dict
+  "enabled" (dig "enabled" false $envoy)
+  "mode" "grpc"
+  "image" (dig "image" (dict) $envoy)
+  "listenPort" (dig "listenPort" 8080 $envoy)
+  "adminPort" (dig "adminPort" 9901 $envoy)
+  "resources" (dig "resources" (dict) $envoy)
+  "upstream" (dict "host" "127.0.0.1" "port" 8500)
+  "concurrencyRoutes" (dig "concurrencyRoutes" (dict) $envoy)
+  "autoscaling" (dict
+    "enabled" $autoscalingEnabled
+    "minReplicas" (dig "minReplicas" 1 $hpa)
+    "maxReplicas" (dig "maxReplicas" 10 $hpa)
+    "gaugeName" (dig "name" "active-requests" $customMetric)
+    "prometheusMetricName" (dig "prometheusMetricName" "envoy_http_downstream_rq_active" $customMetric)
+    "averageValue" (dig "averageValue" "4" $customMetric)
+    "scaleDownStabilizationWindowSeconds" (dig "scaleDownStabilizationWindowSeconds" 600 $customMetric)
+  )
+-}}
+{{- dict
+  "name" $dep.name
+  "namespace" (include "tensorflow-serving.namespace" $root)
+  "labels" $labels
+  "selectorLabels" $selectorLabels
+  "scaleTargetRef" (dict "apiVersion" "apps/v1" "kind" "Deployment" "name" (printf "d-%s" $sanitizedName))
+  "values" $proxyValues
+| toYaml -}}
+{{- end -}}

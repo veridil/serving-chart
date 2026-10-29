@@ -2,6 +2,8 @@
 {{ $gc := deepCopy $.Values.global }}
 {{- $dep := mergeOverwrite $gc $dep }}
 {{- if not $dep.knative.enabled }}
+{{- $ctx := include "tensorflow-serving.proxyCtx" (dict "dep" $dep "root" $) | fromYaml }}
+{{- include "gke-concurrency-proxy.validate" $ctx }}
 {{- $models := list }}
 {{- if $dep.models }}
 {{- $models = $dep.models }}
@@ -9,11 +11,12 @@
 {{- $models = list $dep.name }}
 {{- end }}
 {{- $servingParams := include "custom.servingParams" $dep | fromYaml }}
+{{- $sanitizedName := include "tensorflow-serving.sanitizeModelName" $dep.name }}
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ printf "d-%s" (include "tensorflow-serving.sanitizeModelName" $dep.name) }}
+  name: {{ printf "d-%s" $sanitizedName }}
   namespace: {{ include "tensorflow-serving.namespace" $ }}
   labels:
     app.kubernetes.io/name: tensorflow-serving
@@ -89,6 +92,12 @@ spec:
           {{- toYaml $.Values.global.env | nindent 12 }}
         ports:
         - containerPort: 8500
+          name: grpc
+        readinessProbe:
+          tcpSocket:
+            port: 8500
+          initialDelaySeconds: 5
+          periodSeconds: 10
         resources:
           {{- toYaml $dep.resources | nindent 12 }}
         volumeMounts:
@@ -96,12 +105,14 @@ spec:
           mountPath: /models
         - name: config-volume
           mountPath: /config
+      {{- include "gke-concurrency-proxy.envoy.container" $ctx | nindent 6 }}
       volumes:
       - name: config-volume
         configMap:
-          name: {{ printf "cm-%s" (include "tensorflow-serving.sanitizeModelName" $dep.name) }}
+          name: {{ printf "cm-%s" $sanitizedName }}
       - name: model-volume
         emptyDir: {}
+      {{- include "gke-concurrency-proxy.envoy.volume" $ctx | nindent 6 }}
       {{- if $dep.modelStorage.gc.credentialsSecret }}
       - name: secret-volume
         secret:
@@ -111,7 +122,7 @@ spec:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ printf "cm-%s" (include "tensorflow-serving.sanitizeModelName" $dep.name) }}
+  name: {{ printf "cm-%s" $sanitizedName }}
   namespace: {{ include "tensorflow-serving.namespace" $ }}
   labels:
     app.kubernetes.io/name: tensorflow-serving
@@ -119,7 +130,8 @@ metadata:
     deploymentName: {{ $dep.name }}
 data:
   model-config: |
-    {{ include "tensorflow-serving.modelConfig" $dep.models | nindent 4 }}
+    {{ include "tensorflow-serving.modelConfig" $models | nindent 4 }}
+{{- include "gke-concurrency-proxy.envoy.configMap" $ctx }}
 
 {{- end }}
 {{- end }}

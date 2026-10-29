@@ -1,0 +1,8 @@
+{{- range $index, $dep := .Values.deployments }}
+{{ $gc := deepCopy $.Values.global }}
+{{- $dep := mergeOverwrite $gc $dep }}
+{{- if and (not $dep.knative.enabled) (dig "hpa" "enabled" false $dep) (dig "hpa" "customMetric" "enabled" false $dep) }}
+{{- $ctx := include "tensorflow-serving.proxyCtx" (dict "dep" $dep "root" $) | fromYaml }}
+{{- include "gke-concurrency-proxy.autoscalingMetric" $ctx }}
+{{- end }}
+{{- end }}

@@ -2,6 +2,10 @@
 {{ $gc := deepCopy $.Values.global }}
 {{- $dep := mergeOverwrite $gc $dep }}
 {{- if not $dep.knative.enabled }}
+{{- $ctx := include "tensorflow-serving.proxyCtx" (dict "dep" $dep "root" $) | fromYaml }}
+{{- $fallbackTargetPort := $dep.service.targetPort | default $.Values.global.service.targetPort }}
+{{- $targetPort := include "gke-concurrency-proxy.serviceTargetPort" $ctx | default $fallbackTargetPort }}
+{{- $portName := include "gke-concurrency-proxy.servicePortName" $ctx | default "http" }}
 ---
 apiVersion: v1
 kind: Service
@@ -18,7 +22,30 @@ spec:
   type: {{ $dep.service.type | default $.Values.global.service.type }}
   ports:
   - port: {{ $dep.service.port | default $.Values.global.service.port | default 80 }}
-    targetPort: {{ $dep.service.targetPort | default $.Values.global.service.targetPort }}
+    targetPort: {{ $targetPort }}
+    name: {{ $portName }}
+  selector:
+    app.kubernetes.io/name: tensorflow-serving
+    deploymentName: {{ $dep.name }}
+---
+# Headless Service for direct Pod discovery
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ printf "shl-%s" (include "tensorflow-serving.sanitizeModelName" $dep.name) }}
+  namespace: {{ include "tensorflow-serving.namespace" $ }}
+  annotations:
+    {{- toYaml $.Values.global.service.annotations | nindent 4 }}
+  labels:
+    app.kubernetes.io/name: tensorflow-serving
+    app.kubernetes.io/instance: {{ include "tensorflow-serving.name" $ }}
+    deploymentName: {{ $dep.name }}
+spec:
+  clusterIP: None # This makes the service "headless"
+  ports:
+  - port: {{ $dep.service.port | default $.Values.global.service.port | default 80 }}
+    targetPort: {{ $targetPort }}
+    name: {{ $portName }}
   selector:
     app.kubernetes.io/name: tensorflow-serving
     deploymentName: {{ $dep.name }}
